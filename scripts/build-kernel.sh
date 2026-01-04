@@ -12,6 +12,13 @@ echo "    T2LINUX_COMMIT: ${T2LINUX_COMMIT}"
 COMPILER=${COMPILER:-gcc}
 echo "    COMPILER: ${COMPILER}"
 
+# Repository root (for both Docker and local builds)
+REPO_ROOT=${REPO_ROOT:-/repo}
+if [ ! -d "$REPO_ROOT" ]; then
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+echo "    Repository root: ${REPO_ROOT}"
+
 # Work in /tmp to avoid conflicts with mounted volumes
 WORK_DIR="/tmp/pve-build-$$"
 mkdir -p "$WORK_DIR"
@@ -76,7 +83,7 @@ cp ../linux-t2-patches/*.patch ./patches/kernel/
 
 # Copy our T2.patch (build system modifications)
 echo "==> Applying T2.patch (build system modifications)"
-cp /repo/patches/T2.patch ./
+cp "$REPO_ROOT/patches/T2.patch" ./
 
 # Apply T2.patch to modify Makefile and debian/rules
 git config user.email "build@0x23me.github.io"
@@ -103,9 +110,9 @@ echo "    t2linux KVER: ${T2_KVER}"
 echo "    Packages built:"
 ls -lh ../*.deb 2>/dev/null || ls -lh ./*.deb 2>/dev/null || echo "    (packages in unknown location)"
 
-# Copy packages to /repo if it exists (for Docker builds)
-if [ -d "/repo" ]; then
-  echo "==> Copying packages to /repo"
-  cp ../*.deb /repo/ 2>/dev/null || cp ./*.deb /repo/ 2>/dev/null || echo "    Warning: Could not copy packages"
-  ls -lh /repo/*.deb 2>/dev/null
+# Copy packages to repository root
+if [ -d "$REPO_ROOT" ]; then
+  echo "==> Copying packages to $REPO_ROOT"
+  cp ../*.deb "$REPO_ROOT/" 2>/dev/null || cp ./*.deb "$REPO_ROOT/" 2>/dev/null || echo "    Warning: Could not copy packages"
+  ls -lh "$REPO_ROOT"/*.deb 2>/dev/null
 fi

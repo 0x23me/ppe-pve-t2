@@ -11,8 +11,8 @@ echo "    T2LINUX_COMMIT: ${T2LINUX_COMMIT}"
 
 # Add Proxmox repository
 echo "==> Adding Proxmox repository"
-echo "deb http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve.list
-wget -qO /etc/apt/trusted.gpg.d/proxmox.gpg http://download.proxmox.com/debian/proxmox-release-trixie.gpg
+wget https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg -O /usr/share/keyrings/proxmox-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/proxmox-archive-keyring.gpg] http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve.list
 
 # Install build dependencies
 echo "==> Installing build dependencies"

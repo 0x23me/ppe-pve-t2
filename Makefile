@@ -1,4 +1,4 @@
-.PHONY: build-docker build-docker-clang clean help
+.PHONY: build-docker build-docker-clang build-local build-local-clang clean help
 
 # Default t2linux commit (can be overridden: make build-docker T2LINUX_COMMIT=abc123)
 T2LINUX_COMMIT ?= 699c8fd
@@ -11,6 +11,8 @@ help:
 	@echo "Available targets:"
 	@echo "  build-docker       - Build kernel in Docker container (amd64, gcc)"
 	@echo "  build-docker-clang - Build kernel in Docker container (amd64, clang)"
+	@echo "  build-local        - Build kernel locally (gcc)"
+	@echo "  build-local-clang  - Build kernel locally (clang)"
 	@echo "  clean              - Clean up build artifacts"
 	@echo ""
 	@echo "Environment variables:"
@@ -40,6 +42,16 @@ build-docker-clang:
 		-e COMPILER=clang \
 		$(DOCKER_IMAGE) \
 		bash -c 'set -e && bash /repo/scripts/build-kernel.sh'
+
+build-local:
+	@echo "==> Building kernel locally (gcc)"
+	@echo "    T2LINUX_COMMIT: $(T2LINUX_COMMIT)"
+	T2LINUX_COMMIT="$(T2LINUX_COMMIT)" bash scripts/build-kernel.sh
+
+build-local-clang:
+	@echo "==> Building kernel locally (clang)"
+	@echo "    T2LINUX_COMMIT: $(T2LINUX_COMMIT)"
+	T2LINUX_COMMIT="$(T2LINUX_COMMIT)" COMPILER=clang bash scripts/build-kernel.sh
 
 clean:
 	@echo "==> Cleaning up build artifacts"

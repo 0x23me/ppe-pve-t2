@@ -8,6 +8,10 @@ set -e
 echo "==> Building PVE kernel with T2 support"
 echo "    T2LINUX_COMMIT: ${T2LINUX_COMMIT}"
 
+# Compiler selection (default: gcc)
+COMPILER=${COMPILER:-gcc}
+echo "    COMPILER: ${COMPILER}"
+
 # Work in /tmp to avoid conflicts with mounted volumes
 WORK_DIR="/tmp/pve-build-$$"
 mkdir -p "$WORK_DIR"
@@ -40,7 +44,8 @@ nala install -y \
   asciidoc-base automake cpio debhelper dh-python file gcc kmod \
   libdw-dev libiberty-dev libnuma-dev libslang2-dev libtool \
   lintian lz4 dwarves python3-dev zstd \
-  perl-modules rsync sphinx-common xmlto zlib1g-dev gawk
+  perl-modules rsync sphinx-common xmlto zlib1g-dev gawk \
+  clang lld llvm
 
 # Clone t2linux patches at specified commit (fetched dynamically)
 echo "==> Cloning t2linux patches at commit ${T2LINUX_COMMIT}"
@@ -84,8 +89,13 @@ git submodule update --depth 1 --init submodules/ubuntu-kernel
 git submodule update --init --recursive submodules/zfsonlinux
 
 # Build
-echo "==> Building kernel packages (this may take 30-60 minutes)"
-make deb
+if [ "$COMPILER" = "clang" ]; then
+  echo "==> Building kernel packages with clang (this may take 30-60 minutes)"
+  make LLVM=1 deb
+else
+  echo "==> Building kernel packages with gcc (this may take 30-60 minutes)"
+  make deb
+fi
 
 echo "==> Build complete!"
 echo "    Kernel version: ${KERNEL_VERSION}"

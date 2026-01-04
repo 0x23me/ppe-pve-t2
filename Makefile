@@ -1,4 +1,4 @@
-.PHONY: build-docker build-docker-clang build-local build-local-clang clean help
+.PHONY: build-docker build-docker-clang build-local build-local-clang clean clean-cache help
 
 # Default t2linux commit (can be overridden: make build-docker T2LINUX_COMMIT=abc123)
 T2LINUX_COMMIT ?= 699c8fd
@@ -11,9 +11,10 @@ help:
 	@echo "Available targets:"
 	@echo "  build-docker       - Build kernel in Docker container (amd64, gcc)"
 	@echo "  build-docker-clang - Build kernel in Docker container (amd64, clang)"
-	@echo "  build-local        - Build kernel locally (gcc)"
-	@echo "  build-local-clang  - Build kernel locally (clang)"
-	@echo "  clean              - Clean up build artifacts"
+	@echo "  build-local        - Build kernel locally (gcc, uses cache)"
+	@echo "  build-local-clang  - Build kernel locally (clang, uses cache)"
+	@echo "  clean              - Clean up build artifacts in repo"
+	@echo "  clean-cache        - Remove persistent build cache (/tmp/pve-build-local)"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  T2LINUX_COMMIT     - t2linux patches commit (default: 699c8fd)"
@@ -54,7 +55,12 @@ build-local-clang:
 	T2LINUX_COMMIT="$(T2LINUX_COMMIT)" COMPILER=clang bash scripts/build-kernel.sh
 
 clean:
-	@echo "==> Cleaning up build artifacts"
+	@echo "==> Cleaning up build artifacts in repo"
 	rm -rf linux-t2-patches pve-kernel
 	rm -f *.deb
 	@echo "==> Clean complete"
+
+clean-cache:
+	@echo "==> Removing persistent build cache"
+	rm -rf /tmp/pve-build-local
+	@echo "==> Cache removed"

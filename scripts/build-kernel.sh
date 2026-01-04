@@ -14,6 +14,11 @@ mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 echo "    Working directory: ${WORK_DIR}"
 
+# Install basic tools and nala
+echo "==> Installing nala and basic tools"
+apt-get update -qq
+apt-get install -y -qq nala wget curl ca-certificates git
+
 # Add Proxmox repository
 echo "==> Adding Proxmox repository"
 mkdir -p /usr/share/keyrings
@@ -29,8 +34,8 @@ echo "    Proxmox repository added successfully"
 
 # Install build dependencies
 echo "==> Installing build dependencies"
-apt-get update
-apt-get install -y \
+nala update
+nala install -y \
   build-essential git bc bison flex libssl-dev libelf-dev \
   asciidoc-base automake cpio debhelper dh-python file gcc kmod \
   libdw-dev libiberty-dev libnuma-dev libslang2-dev libtool \

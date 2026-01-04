@@ -25,10 +25,7 @@ build-docker:
 		-w /repo \
 		-e T2LINUX_COMMIT="$(T2LINUX_COMMIT)" \
 		$(DOCKER_IMAGE) \
-		bash -c 'set -e && \
-			apt-get update -qq && \
-			apt-get install -y -qq wget curl ca-certificates git && \
-			bash /repo/scripts/build-kernel.sh'
+		bash -c 'set -e && bash /repo/scripts/build-kernel.sh'
 
 clean:
 	@echo "==> Cleaning up build artifacts"

@@ -1,0 +1,60 @@
+name: Check Upstream Versions
+
+on:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    outputs:
+      needs_build: ${{ steps.check.outputs.needs_build }}
+      pve_kernel_tag: ${{ steps.check.outputs.pve_kernel_tag }}
+      t2linux_commit: ${{ steps.check.outputs.t2linux_commit }}
+      t2linux_kver: ${{ steps.check.outputs.t2linux_kver }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git jq
+
+      - name: Check for new versions
+        id: check
+        run: |
+          # Run version check script
+          RESULT=$(bash scripts/check-versions.sh)
+          echo "$RESULT" | jq .
+
+          # Export outputs
+          echo "needs_build=$(echo "$RESULT" | jq -r '.needs_build')" >> $GITHUB_OUTPUT
+          echo "pve_kernel_tag=$(echo "$RESULT" | jq -r '.pve_kernel_tag')" >> $GITHUB_OUTPUT
+          echo "t2linux_commit=$(echo "$RESULT" | jq -r '.t2linux_commit')" >> $GITHUB_OUTPUT
+          echo "t2linux_kver=$(echo "$RESULT" | jq -r '.t2linux_kver')" >> $GITHUB_OUTPUT
+
+      - name: Trigger build if needed
+        if: steps.check.outputs.needs_build == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              ref: 'main',
+              inputs: {
+                pve_kernel_tag: '${{ steps.check.outputs.pve_kernel_tag }}',
+                t2linux_commit: '${{ steps.check.outputs.t2linux_commit }}'
+              }
+            });
+            console.log('Triggered build workflow');
+
+      - name: No build needed
+        if: steps.check.outputs.needs_build == 'false'
+        run: echo "No new versions detected, skipping build"

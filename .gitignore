@@ -1,0 +1,33 @@
+# GPG private keys
+*.gpg.private
+*.asc
+*.secret
+.gpg-private-key.asc
+.gpg-key-id
+
+# Aptly database
+.aptly/
+*.db
+
+# Temporary files
+*.tmp
+*.bak
+/tmp/
+
+# Downloaded packages in temporary directories (but allow docs/*.deb for GitHub Pages)
+/tmp/**/*.deb
+*.deb
+!docs/**/*.deb
+
+# System files
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Devenv
+.devenv/
+.direnv/
+devenv.local.nix

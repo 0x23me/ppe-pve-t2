@@ -1,0 +1,104 @@
+name: Publish APT Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Kernel version to publish'
+        required: true
+        type: string
+      run_id:
+        description: 'Build workflow run ID'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install aptly
+        run: |
+          echo "==> Installing aptly"
+          wget -qO - https://www.aptly.info/pubkey.txt | sudo apt-key add -
+          echo "deb http://repo.aptly.info/ squeeze main" | sudo tee /etc/apt/sources.list.d/aptly.list
+          sudo apt-get update
+          sudo apt-get install -y aptly jq
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-packages-${{ inputs.kernel_version }}
+          path: build-artifacts/
+
+      - name: List downloaded artifacts
+        run: |
+          echo "==> Downloaded artifacts:"
+          find build-artifacts -name "*.deb" -type f
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "==> Importing GPG key"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-secret-keys
+
+      - name: Publish repository
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "==> Publishing repository"
+          bash scripts/publish-repo.sh build-artifacts/
+
+      - name: Commit and push
+        run: |
+          echo "==> Committing repository changes"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/
+          git commit -m "Publish kernel ${{ inputs.kernel_version }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.kernel_version }}
+          name: Release ${{ inputs.kernel_version }}
+          body: |
+            ## Proxmox VE Kernel with T2 Mac Support
+
+            **Kernel Version:** ${{ inputs.kernel_version }}
+
+            ### Installation
+
+            Add the APT repository:
+            ```bash
+            echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.gpg] https://0x23me.github.io/ppe-pve-t2 trixie main" | sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
+            wget -qO /usr/share/keyrings/ppe-pve-t2.gpg https://0x23me.github.io/ppe-pve-t2/KEY.gpg
+            sudo apt update
+            sudo apt install proxmox-kernel-6.17
+            ```
+
+            ### What's Included
+
+            - Proxmox VE kernel with T2 Mac hardware support
+            - Touch Bar support
+            - BCE (Buffer Copy Engine) support
+            - Bluetooth support
+            - APFS filesystem support
+
+            ### Files
+
+            All packages are also available in the APT repository.
+          files: build-artifacts/*.deb
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

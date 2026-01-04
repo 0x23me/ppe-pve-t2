@@ -1,0 +1,150 @@
+name: Build PVE Kernel with T2 Support
+
+on:
+  workflow_dispatch:
+    inputs:
+      pve_kernel_tag:
+        description: 'PVE kernel tag (e.g., pve-kernel-6.17.4-2)'
+        required: true
+        type: string
+      t2linux_commit:
+        description: 'T2Linux patches commit hash'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          echo "==> Freeing disk space"
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -a -f
+          df -h
+
+      - name: Set up Docker
+        run: |
+          echo "==> Docker version"
+          docker --version
+
+      - name: Build kernel in Docker
+        run: |
+          echo "==> Starting kernel build in Docker"
+          echo "    PVE_KERNEL_TAG: ${{ inputs.pve_kernel_tag }}"
+          echo "    T2LINUX_COMMIT: ${{ inputs.t2linux_commit }}"
+
+          # Run build in Docker
+          docker run --rm \
+            -v "$(pwd):/repo" \
+            -w /repo \
+            -e PVE_KERNEL_TAG="${{ inputs.pve_kernel_tag }}" \
+            -e T2LINUX_COMMIT="${{ inputs.t2linux_commit }}" \
+            debian:trixie \
+            bash -c "
+              set -e
+              apt-get update
+              apt-get install -y wget curl ca-certificates
+              bash /repo/scripts/build-kernel.sh
+            "
+
+      - name: Find built packages
+        id: packages
+        run: |
+          echo "==> Locating built packages"
+
+          # Packages should be in the root directory after Docker build
+          DEB_FILES=$(find . -maxdepth 2 -name "*.deb" -type f)
+
+          if [ -z "$DEB_FILES" ]; then
+            echo "Error: No .deb files found!"
+            exit 1
+          fi
+
+          echo "Found packages:"
+          echo "$DEB_FILES"
+
+          # Extract kernel version from one of the package names
+          # Example: proxmox-kernel-6.17.4-2-pve-t2_6.17.4-2_amd64.deb → 6.17.4-2-pve-t2
+          KERNEL_VERSION=$(echo "$DEB_FILES" | grep -o 'proxmox-kernel-[0-9][^_]*' | head -1 | sed 's/proxmox-kernel-//')
+
+          if [ -z "$KERNEL_VERSION" ]; then
+            echo "Warning: Could not extract kernel version, using tag"
+            KERNEL_VERSION="${{ inputs.pve_kernel_tag }}"
+          fi
+
+          echo "Kernel version: $KERNEL_VERSION"
+          echo "kernel_version=$KERNEL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-packages-${{ steps.packages.outputs.kernel_version }}
+          path: |
+            *.deb
+            pve-kernel/*.deb
+          retention-days: 30
+
+      - name: Update versions.json
+        run: |
+          echo "==> Updating versions.json"
+
+          # Read t2linux KVER from the build
+          T2_KVER="unknown"
+          if [ -d linux-t2-patches ]; then
+            T2_KVER=$(cat linux-t2-patches/version 2>/dev/null || echo "unknown")
+          fi
+
+          # Update versions.json
+          jq --arg pve_tag "${{ inputs.pve_kernel_tag }}" \
+             --arg t2_commit "${{ inputs.t2linux_commit }}" \
+             --arg t2_kver "$T2_KVER" \
+             --arg kernel_ver "${{ steps.packages.outputs.kernel_version }}" \
+             --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             '.last_build = {
+               pve_kernel_tag: $pve_tag,
+               t2linux_commit: $t2_commit,
+               t2linux_kver: $t2_kver,
+               kernel_version: $kernel_ver,
+               built_at: $built_at,
+               status: "success"
+             } | .history += [{
+               pve_kernel_tag: $pve_tag,
+               t2linux_commit: $t2_commit,
+               kernel_version: $kernel_ver,
+               built_at: $built_at
+             }]' versions.json > versions.json.tmp
+
+          mv versions.json.tmp versions.json
+          cat versions.json | jq .
+
+      - name: Commit versions.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add versions.json
+          git commit -m "Update versions.json: ${{ inputs.pve_kernel_tag }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
+
+      - name: Trigger publish workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'publish.yml',
+              ref: 'main',
+              inputs: {
+                kernel_version: '${{ steps.packages.outputs.kernel_version }}',
+                run_id: '${{ github.run_id }}'
+              }
+            });
+            console.log('Triggered publish workflow');

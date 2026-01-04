@@ -1,0 +1,37 @@
+.PHONY: build-docker clean help
+
+# Default t2linux commit (can be overridden: make build-docker T2LINUX_COMMIT=abc123)
+T2LINUX_COMMIT ?= 699c8fd
+
+# Docker settings
+DOCKER_IMAGE := debian:trixie
+DOCKER_PLATFORM := linux/amd64
+
+help:
+	@echo "Available targets:"
+	@echo "  build-docker    - Build kernel in Docker container (amd64)"
+	@echo "  clean          - Clean up build artifacts"
+	@echo ""
+	@echo "Environment variables:"
+	@echo "  T2LINUX_COMMIT - t2linux patches commit (default: 699c8fd)"
+
+build-docker:
+	@echo "==> Building kernel in Docker container"
+	@echo "    T2LINUX_COMMIT: $(T2LINUX_COMMIT)"
+	@echo "    Platform: $(DOCKER_PLATFORM)"
+	docker run --rm \
+		--platform $(DOCKER_PLATFORM) \
+		-v "$(PWD):/repo" \
+		-w /repo \
+		-e T2LINUX_COMMIT="$(T2LINUX_COMMIT)" \
+		$(DOCKER_IMAGE) \
+		bash -c 'set -e && \
+			apt-get update -qq && \
+			apt-get install -y -qq wget curl ca-certificates git && \
+			bash /repo/scripts/build-kernel.sh'
+
+clean:
+	@echo "==> Cleaning up build artifacts"
+	rm -rf linux-t2-patches pve-kernel
+	rm -f *.deb
+	@echo "==> Clean complete"

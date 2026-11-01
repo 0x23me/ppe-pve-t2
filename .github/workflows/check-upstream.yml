@@ -6,6 +6,11 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+# The default GITHUB_TOKEN is read-only; dispatching build.yml needs actions: write
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest

@@ -12,6 +12,11 @@ on:
         required: true
         type: string
 
+# Push the APT repo, create the release (contents) and download the build run's artifacts (actions)
+permissions:
+  actions: read
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest

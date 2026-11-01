@@ -1,15 +1,18 @@
-From 2fbb518bec6390339e3aff67093f30397fefb2de Mon Sep 17 00:00:00 2001
-From: Aditya Garg <gargaditya08@live.com>
-Date: Thu, 9 Oct 2025 10:53:52 +0530
+From fecbfdd409034eecf7afeab029cfdff68d1f000c Mon Sep 17 00:00:00 2001
+From: Build Bot <build@0x23me.github.io>
+Date: Sun, 1 Nov 2026 11:48:56 +0100
 Subject: [PATCH] Add T2 support
 
+Rename the kernel flavour to -pve-t2 and enable the T2 drivers
+(apple-bce, Touch Bar, BCM4377 Bluetooth). Since pve-kernel 7.0 the
+config options live in debian/rules.d/config-common.opts.
 ---
- Makefile     | 2 +-
- debian/rules | 6 ++++++
+ Makefile                          | 2 +-
+ debian/rules.d/config-common.opts | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index 3ce7450..5aaad82 100644
+index 54ba27a..fffe9bc 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -19,7 +19,7 @@ KERNEL_MAJMIN=$(KERNEL_MAJ).$(KERNEL_MIN)
@@ -21,23 +24,20 @@ index 3ce7450..5aaad82 100644
  KVNAME=$(KERNEL_VER)$(EXTRAVERSION)
  PACKAGE=proxmox-kernel-$(KVNAME)
  HDRPACKAGE=proxmox-headers-$(KVNAME)
-diff --git a/debian/rules b/debian/rules
-index 956db63..933da65 100755
---- a/debian/rules
-+++ b/debian/rules
-@@ -106,6 +106,12 @@ PMX_CONFIG_OPTS= \
- -d CONFIG_N_GSM \
- -d UBSAN_BOUNDS \
- -d KVM_INTEL_PROVE_VE \
-+-m CONFIG_HID_APPLETB_BL \
-+-m CONFIG_HID_APPLETB_KBD \
-+-m CONFIG_DRM_APPLETBDRM \
-+-m CONFIG_BT_HCIBCM4377 \
-+-m CONFIG_APPLE_BCE \
-+-d CONFIG_VIDEO_SOLO6X10 \
- 
- 
- debian/control: $(wildcard debian/*.in)
+diff --git a/debian/rules.d/config-common.opts b/debian/rules.d/config-common.opts
+index 64505b4..23462c3 100644
+--- a/debian/rules.d/config-common.opts
++++ b/debian/rules.d/config-common.opts
+@@ -68,3 +68,9 @@
+ -d CONFIG_N_GSM
+ -d UBSAN_BOUNDS
+ -e CONFIG_RUST
++-m CONFIG_HID_APPLETB_BL
++-m CONFIG_HID_APPLETB_KBD
++-m CONFIG_DRM_APPLETBDRM
++-m CONFIG_BT_HCIBCM4377
++-m CONFIG_APPLE_BCE
++-d CONFIG_VIDEO_SOLO6X10
 -- 
-2.32.7
+2.54.0
 

@@ -12,6 +12,11 @@ on:
         required: true
         type: string
 
+# Push versions.json (contents) and dispatch publish.yml (actions)
+permissions:
+  actions: write
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest

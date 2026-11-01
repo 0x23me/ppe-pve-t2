@@ -6,18 +6,29 @@ set -e
 
 echo "==> Checking for upstream version updates" >&2
 
-# Get latest pve-kernel tag
-echo "    Fetching latest pve-kernel tag..." >&2
-LATEST_PVE_TAG=$(git ls-remote --tags --sort=-v:refname git://git.proxmox.com/git/pve-kernel.git | \
-  grep -v '\^{}' | \
-  head -1 | \
-  awk '{print $2}' | \
-  sed 's|refs/tags/||')
+# Get the current pve-kernel version from master's Makefile.
+# Proxmox no longer tags every release (the only tags are old 6.8 ones), and
+# build-kernel.sh builds origin/master anyway, so master is the source of truth.
+echo "    Fetching pve-kernel master Makefile..." >&2
+PVE_MAKEFILE=$(curl -fsSL --retry 3 \
+  "https://git.proxmox.com/?p=pve-kernel.git;a=blob_plain;f=Makefile;hb=refs/heads/master")
 
-echo "    Latest pve-kernel tag: ${LATEST_PVE_TAG}" >&2
+mk_var() { echo "$PVE_MAKEFILE" | grep -m1 "^$1=" | cut -d'=' -f2; }
+KERNEL_MAJ=$(mk_var KERNEL_MAJ)
+KERNEL_MIN=$(mk_var KERNEL_MIN)
+KERNEL_PATCHLEVEL=$(mk_var KERNEL_PATCHLEVEL)
+KREL=$(mk_var KREL)
 
-# Extract kernel major.minor version from tag (e.g., "pve-kernel-6.17.4-2" → "6.17")
-KERNEL_MAJMIN=$(echo "$LATEST_PVE_TAG" | sed 's/pve-kernel-//' | cut -d. -f1,2)
+if [ -z "$KERNEL_MAJ" ] || [ -z "$KERNEL_MIN" ] || [ -z "$KERNEL_PATCHLEVEL" ] || [ -z "$KREL" ]; then
+  echo "    ERROR: could not parse kernel version from pve-kernel Makefile" >&2
+  exit 1
+fi
+
+# Identifier for this upstream release, e.g. "proxmox-kernel-7.0.14-27"
+LATEST_PVE_TAG="proxmox-kernel-${KERNEL_MAJ}.${KERNEL_MIN}.${KERNEL_PATCHLEVEL}-${KREL}"
+echo "    Latest pve-kernel version: ${LATEST_PVE_TAG}" >&2
+
+KERNEL_MAJMIN="${KERNEL_MAJ}.${KERNEL_MIN}"
 echo "    Kernel major.minor: ${KERNEL_MAJMIN}" >&2
 
 # Find appropriate t2linux commit using our script

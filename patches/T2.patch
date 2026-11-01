@@ -1,4 +1,4 @@
-From fecbfdd409034eecf7afeab029cfdff68d1f000c Mon Sep 17 00:00:00 2001
+From 659e98bfd05fc27dccb8c4fec967b76a57d5aa2b Mon Sep 17 00:00:00 2001
 From: Build Bot <build@0x23me.github.io>
 Date: Sun, 1 Nov 2026 11:48:56 +0100
 Subject: [PATCH] Add T2 support
@@ -6,13 +6,20 @@ Subject: [PATCH] Add T2 support
 Rename the kernel flavour to -pve-t2 and enable the T2 drivers
 (apple-bce, Touch Bar, BCM4377 Bluetooth). Since pve-kernel 7.0 the
 config options live in debian/rules.d/config-common.opts.
+
+Suffix the series metapackages with -t2 (proxmox-kernel-X.Y-t2,
+proxmox-headers-X.Y-t2) so they don't collide with Proxmox's own
+proxmox-kernel-X.Y / proxmox-headers-X.Y and can be installed side by
+side from a separate repository without apt pinning.
 ---
- Makefile                          | 2 +-
+ Makefile                          | 6 +++---
+ debian/control.in                 | 4 ++--
+ debian/rules                      | 2 +-
  debian/rules.d/config-common.opts | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ 4 files changed, 12 insertions(+), 6 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 54ba27a..fffe9bc 100644
+index d5006f7..3803aa9 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -19,7 +19,7 @@ KERNEL_MAJMIN=$(KERNEL_MAJ).$(KERNEL_MIN)
@@ -24,6 +31,53 @@ index 54ba27a..fffe9bc 100644
  KVNAME=$(KERNEL_VER)$(EXTRAVERSION)
  PACKAGE=proxmox-kernel-$(KVNAME)
  HDRPACKAGE=proxmox-headers-$(KVNAME)
+@@ -56,9 +56,9 @@ DIRS=KERNEL_SRC ZFSDIR MODULES
+ DSC=proxmox-kernel-$(KERNEL_MAJMIN)_$(DEB_VERSION).dsc
+ DST_DEB=$(PACKAGE)_$(DEB_VERSION)_$(ARCH).deb
+ SIGNED_TEMPLATE_DEB=$(PACKAGE)-signed-template_$(DEB_VERSION)_$(ARCH).deb
+-META_DEB=proxmox-kernel-$(KERNEL_MAJMIN)_$(DEB_VERSION)_$(ARCH).deb
++META_DEB=proxmox-kernel-$(KERNEL_MAJMIN)-t2_$(DEB_VERSION)_$(ARCH).deb
+ HDR_DEB=$(HDRPACKAGE)_$(DEB_VERSION)_$(ARCH).deb
+-META_HDR_DEB=proxmox-headers-$(KERNEL_MAJMIN)_$(DEB_VERSION)_$(ARCH).deb
++META_HDR_DEB=proxmox-headers-$(KERNEL_MAJMIN)-t2_$(DEB_VERSION)_$(ARCH).deb
+ USR_HDR_DEB=proxmox-kernel-libc-dev_$(DEB_VERSION)_$(ARCH).deb
+ LINUX_TOOLS_DEB=linux-tools-$(KERNEL_MAJMIN)_$(DEB_VERSION)_$(ARCH).deb
+ LINUX_TOOLS_DBG_DEB=linux-tools-$(KERNEL_MAJMIN)-dbgsym_$(DEB_VERSION)_$(ARCH).deb
+diff --git a/debian/control.in b/debian/control.in
+index b7048b6..723af25 100644
+--- a/debian/control.in
++++ b/debian/control.in
+@@ -105,7 +105,7 @@ Description: Linux support headers for userspace development
+  This package provides userspaces headers from the Linux kernel.  These headers
+  are used by the installed headers for GNU libc and other system libraries.
+ 
+-Package: proxmox-headers-@KVMAJMIN@
++Package: proxmox-headers-@KVMAJMIN@-t2
+ Architecture: any
+ Section: admin
+ Provides: linux-headers-@ARCH@, linux-headers-generic, pve-headers-@KVMAJMIN@
+@@ -117,7 +117,7 @@ Description: Latest Proxmox Kernel Headers
+  for the latest available proxmox kernel from the @KVMAJMIN@
+  series.
+ 
+-Package: proxmox-kernel-@KVMAJMIN@
++Package: proxmox-kernel-@KVMAJMIN@-t2
+ Architecture: any
+ Section: admin
+ Provides: linux-image-@ARCH@, linux-image-generic, wireguard-modules (=1.0.0), pve-kernel-@KVMAJMIN@
+diff --git a/debian/rules b/debian/rules
+index d8a880c..ffb3e83 100755
+--- a/debian/rules
++++ b/debian/rules
+@@ -17,7 +17,7 @@ CHANGELOG_DATE:=$(shell dpkg-parsechangelog -SDate)
+ CHANGELOG_DATE_UTC_ISO := $(shell date -u -d '$(CHANGELOG_DATE)' +%Y-%m-%dT%H:%MZ)
+ 
+ PMX_KERNEL_PKG=proxmox-kernel-$(KVNAME)
+-PMX_KERNEL_SERIES_PKG=proxmox-kernel-$(KERNEL_MAJMIN)
++PMX_KERNEL_SERIES_PKG=proxmox-kernel-$(KERNEL_MAJMIN)-t2
+ PMX_DEBUG_KERNEL_PKG=proxmox-kernel-$(KVNAME)-dbgsym
+ PMX_HEADER_PKG=proxmox-headers-$(KVNAME)
+ PMX_USR_HEADER_PKG=proxmox-kernel-libc-dev
 diff --git a/debian/rules.d/config-common.opts b/debian/rules.d/config-common.opts
 index 64505b4..23462c3 100644
 --- a/debian/rules.d/config-common.opts

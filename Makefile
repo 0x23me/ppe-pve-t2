@@ -9,8 +9,9 @@ DOCKER_PLATFORM := linux/amd64
 
 # Local Docker builds: dependencies are baked into a cached image (Dockerfile
 # stage1, rebuilt only when build-kernel-stage1.sh changes) and the source
-# checkouts (pve-kernel, ubuntu-kernel, zfsonlinux, t2linux) live in a named
-# volume, so reruns skip the apt install and the multi-GB clones.
+# checkouts (pve-kernel, ubuntu-kernel, zfsonlinux, t2linux) and the ccache
+# live in a named volume, so reruns skip the apt install, the multi-GB clones
+# and recompiling unchanged code.
 DEPS_IMAGE := pve-kernel-deps
 CACHE_VOLUME := pve-kernel-build-cache
 PVE_KERNEL_TAG ?=
@@ -47,6 +48,8 @@ build-docker: deps-image
 		-e PVE_KERNEL_TAG="$(PVE_KERNEL_TAG)" \
 		-e SKIP_DEPS=1 \
 		-e BUILD_WORK_DIR=/cache/work \
+		-e USE_CCACHE=1 \
+		-e CCACHE_DIR=/cache/ccache \
 		$(DEPS_IMAGE) \
 		bash /repo/scripts/build-kernel.sh
 
@@ -63,6 +66,8 @@ build-docker-clang: deps-image
 		-e PVE_KERNEL_TAG="$(PVE_KERNEL_TAG)" \
 		-e SKIP_DEPS=1 \
 		-e BUILD_WORK_DIR=/cache/work \
+		-e USE_CCACHE=1 \
+		-e CCACHE_DIR=/cache/ccache \
 		-e COMPILER=clang \
 		$(DEPS_IMAGE) \
 		bash /repo/scripts/build-kernel.sh

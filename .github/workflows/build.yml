@@ -78,7 +78,7 @@ jobs:
 
           # Extract kernel version from one of the package names
           # Example: proxmox-kernel-6.17.4-2-pve-t2_6.17.4-2_amd64.deb → 6.17.4-2-pve-t2
-          KERNEL_VERSION=$(echo "$DEB_FILES" | grep -o 'proxmox-kernel-[0-9][^_]*' | head -1 | sed 's/proxmox-kernel-//')
+          KERNEL_VERSION=$(echo "$DEB_FILES" | grep -oE 'proxmox-kernel-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-pve-t2_' | head -1 | sed 's/^proxmox-kernel-//; s/_$//')
 
           if [ -z "$KERNEL_VERSION" ]; then
             echo "Warning: Could not extract kernel version, using tag"

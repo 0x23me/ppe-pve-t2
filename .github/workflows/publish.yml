@@ -88,7 +88,7 @@ jobs:
             echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.gpg] https://0x23me.github.io/ppe-pve-t2 trixie main" | sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
             wget -qO /usr/share/keyrings/ppe-pve-t2.gpg https://0x23me.github.io/ppe-pve-t2/KEY.gpg
             sudo apt update
-            sudo apt install proxmox-kernel-6.17
+            sudo apt install proxmox-kernel-7.0-t2 proxmox-headers-7.0-t2
             ```
 
             ### What's Included

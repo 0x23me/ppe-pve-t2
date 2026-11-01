@@ -31,6 +31,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
   lintian lz4 dwarves python3-dev zstd \
   perl-modules rsync sphinx-common xmlto zlib1g-dev gawk \
   clang lld llvm \
-  bindgen rustc rust-src rustfmt rust-clippy
+  bindgen rustc rust-src rustfmt rust-clippy \
+  ccache
 
 echo "==> Stage 1 complete!"

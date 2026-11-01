@@ -31,14 +31,20 @@ sudo apt update
 ### 4. Install kernel
 
 ```bash
-# Install latest 6.17 series kernel
-sudo apt install proxmox-kernel-6.17
+# Install the latest 7.0 series T2 kernel and its headers (headers are
+# needed for DKMS modules, e.g. out-of-tree NIC drivers)
+sudo apt install proxmox-kernel-7.0-t2 proxmox-headers-7.0-t2
 
-# Or install specific version
-sudo apt install proxmox-kernel-6.17.4-2-pve-t2
+# Or install a specific version
+sudo apt install proxmox-kernel-7.0.14-26-pve-t2
+```
 
-# Or install headers
-sudo apt install proxmox-headers-6.17
+The series metapackages carry a `-t2` suffix (`proxmox-kernel-7.0-t2`,
+`proxmox-headers-7.0-t2`), so they don't collide with Proxmox's own
+`proxmox-kernel-7.0` and both can stay installed; no apt pinning needed.
+New T2 kernels then arrive with a normal `apt upgrade`.
+
+```bash
 ```
 
 ### 5. Reboot

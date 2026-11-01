@@ -1,0 +1,5 @@
+# Keep the build context small: only scripts/ and patches/ are COPYed
+.git
+*.deb
+linux-t2-patches
+pve-kernel

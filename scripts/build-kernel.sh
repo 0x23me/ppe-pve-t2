@@ -26,7 +26,11 @@ if [ "$REPO_ROOT" = "/repo" ] && [ -d "/repo" ]; then
 fi
 
 # Work directory: persistent for local builds, ephemeral for Docker
-if [ "$IN_DOCKER" = "1" ]; then
+# unless BUILD_WORK_DIR points at a persistent volume (make build-docker does that)
+if [ -n "$BUILD_WORK_DIR" ]; then
+  WORK_DIR="$BUILD_WORK_DIR"
+  echo "    Build environment: Docker (persistent cache volume)"
+elif [ "$IN_DOCKER" = "1" ]; then
   WORK_DIR="/tmp/pve-build-$$"
   echo "    Build environment: Docker (ephemeral)"
 else
@@ -38,34 +42,13 @@ mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 echo "    Working directory: ${WORK_DIR}"
 
-# Install basic tools
-echo "==> Installing basic tools"
-apt-get update -qq
-apt-get install -y -qq wget curl ca-certificates git
-
-# Add Proxmox repository
-echo "==> Adding Proxmox repository"
-mkdir -p /usr/share/keyrings
-echo "    Downloading Proxmox GPG key..."
-wget -v https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg -O /usr/share/keyrings/proxmox-archive-keyring.gpg || {
-  echo "    ERROR: Failed to download Proxmox GPG key"
-  echo "    Trying alternative method..."
-  curl -f https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg -o /usr/share/keyrings/proxmox-archive-keyring.gpg
-}
-echo "    Adding Proxmox repository to sources..."
-echo "deb [signed-by=/usr/share/keyrings/proxmox-archive-keyring.gpg] http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve.list
-echo "    Proxmox repository added successfully"
-
-# Install build dependencies
-echo "==> Installing build dependencies"
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-  build-essential git bc bison flex libssl-dev libelf-dev \
-  asciidoc-base automake cpio debhelper dh-python file gcc kmod \
-  libdw-dev libiberty-dev libnuma-dev libslang2-dev libtool \
-  lintian lz4 dwarves python3-dev zstd \
-  perl-modules rsync sphinx-common xmlto zlib1g-dev gawk \
-  clang lld llvm
+# Install build dependencies (same steps as the Docker stage1 image).
+# SKIP_DEPS=1 when running inside the prebuilt, cached pve-kernel-deps image.
+if [ "$SKIP_DEPS" = "1" ]; then
+  echo "==> Build dependencies preinstalled (SKIP_DEPS=1)"
+else
+  bash "$REPO_ROOT/scripts/build-kernel-stage1.sh"
+fi
 
 # Clone or update t2linux patches
 if [ -d "linux-t2-patches/.git" ]; then
@@ -88,6 +71,7 @@ cd ..
 if [ -d "pve-kernel/.git" ]; then
   echo "==> Updating existing pve-kernel repository"
   cd pve-kernel
+  git am --abort 2>/dev/null || true
   git fetch origin
   git reset --hard origin/master
   git clean -fdx
@@ -126,6 +110,17 @@ echo "==> Copying t2linux patches to pve-kernel"
 mkdir -p patches/kernel
 cp ../linux-t2-patches/*.patch ./patches/kernel/
 
+# Replace t2linux patches that don't apply to Proxmox's Ubuntu-based source
+# with rebased versions from patches/t2-overrides/<major.minor>/ (same file name)
+OVERRIDE_DIR="$REPO_ROOT/patches/t2-overrides/${KERNEL_MAJ}.${KERNEL_MIN}"
+if [ -d "$OVERRIDE_DIR" ]; then
+  for p in "$OVERRIDE_DIR"/*.patch; do
+    [ -e "$p" ] || continue
+    echo "    Using rebased override: $(basename "$p")"
+    cp "$p" ./patches/kernel/
+  done
+fi
+
 # Copy our T2.patch (build system modifications)
 echo "==> Applying T2.patch (build system modifications)"
 cp "$REPO_ROOT/patches/T2.patch" ./
@@ -135,14 +130,12 @@ git config user.email "build@0x23me.github.io"
 git config user.name "Build Bot"
 git am T2.patch
 
-# Initialize submodules (only if not already initialized)
-if [ ! -d "submodules/ubuntu-kernel/.git" ] || [ ! -d "submodules/zfsonlinux/.git" ]; then
-  echo "==> Initializing submodules"
-  git submodule update --depth 1 --init submodules/ubuntu-kernel
-  git submodule update --init --recursive submodules/zfsonlinux
-else
-  echo "==> Submodules already initialized, skipping"
-fi
+# Sync submodules to the checked-out release. With a persistent work dir the
+# submodules may still be on an older release, so always update (cheap if current).
+echo "==> Updating submodules"
+git submodule sync --quiet
+git submodule update --depth 1 --init submodules/ubuntu-kernel
+git submodule update --init --recursive submodules/zfsonlinux
 
 # Build
 if [ "$COMPILER" = "clang" ]; then

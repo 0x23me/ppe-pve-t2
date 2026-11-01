@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for building PVE kernel with T2 support
 #
 # Stage 1: Install packages and dependencies
@@ -20,8 +21,13 @@ LABEL stage=stage1
 # Copy stage 1 script
 COPY scripts/build-kernel-stage1.sh /tmp/
 
-# Run stage 1: Install packages and dependencies
-RUN bash /tmp/build-kernel-stage1.sh
+# Run stage 1: Install packages and dependencies.
+# The image layer is cached until build-kernel-stage1.sh changes; the apt
+# download cache mount keeps the .debs across rebuilds of this layer too.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
+    bash /tmp/build-kernel-stage1.sh
 
 # Stage 2: Clone repos and prepare patches
 FROM stage1 AS stage2

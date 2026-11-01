@@ -42,6 +42,7 @@ cd ..
 if [ -d "pve-kernel/.git" ]; then
   echo "==> Updating existing pve-kernel repository"
   cd pve-kernel
+  git am --abort 2>/dev/null || true
   git fetch origin
   git reset --hard origin/master
   git clean -fdx
@@ -79,6 +80,17 @@ echo "    Kernel version: ${KERNEL_VERSION}"
 echo "==> Copying t2linux patches to pve-kernel"
 mkdir -p patches/kernel
 cp ../linux-t2-patches/*.patch ./patches/kernel/
+
+# Replace t2linux patches that don't apply to Proxmox's Ubuntu-based source
+# with rebased versions from patches/t2-overrides/<major.minor>/ (same file name)
+OVERRIDE_DIR="$REPO_ROOT/patches/t2-overrides/${KERNEL_MAJ}.${KERNEL_MIN}"
+if [ -d "$OVERRIDE_DIR" ]; then
+  for p in "$OVERRIDE_DIR"/*.patch; do
+    [ -e "$p" ] || continue
+    echo "    Using rebased override: $(basename "$p")"
+    cp "$p" ./patches/kernel/
+  done
+fi
 
 # Copy our T2.patch (build system modifications)
 echo "==> Applying T2.patch (build system modifications)"

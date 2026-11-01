@@ -3,10 +3,10 @@ set -e
 
 echo "==> Stage 1: Installing packages and dependencies"
 
-# Install basic tools and nala
-echo "==> Installing nala and basic tools"
+# Install basic tools
+echo "==> Installing basic tools"
 apt-get update -qq
-apt-get install -y -qq nala wget curl ca-certificates git
+apt-get install -y -qq wget curl ca-certificates git
 
 # Add Proxmox repository
 echo "==> Adding Proxmox repository"
@@ -23,8 +23,8 @@ echo "    Proxmox repository added successfully"
 
 # Install build dependencies
 echo "==> Installing build dependencies"
-nala update
-nala install -y \
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
   build-essential git bc bison flex libssl-dev libelf-dev \
   asciidoc-base automake cpio debhelper dh-python file gcc kmod \
   libdw-dev libiberty-dev libnuma-dev libslang2-dev libtool \

@@ -6,29 +6,19 @@ set -e
 
 echo "==> Checking for upstream version updates" >&2
 
-# Get the current pve-kernel version from master's Makefile.
-# Proxmox no longer tags every release (the only tags are old 6.8 ones), and
-# build-kernel.sh builds origin/master anyway, so master is the source of truth.
-echo "    Fetching pve-kernel master Makefile..." >&2
-PVE_MAKEFILE=$(curl -fsSL --retry 3 \
-  "https://git.proxmox.com/?p=pve-kernel.git;a=blob_plain;f=Makefile;hb=refs/heads/master")
+# Find the newest buildable pve-kernel release on master.
+# Proxmox no longer tags every release (the only tags are old 6.8 ones), and the
+# newest version bump can reference a zfsonlinux commit that isn't published
+# yet, so find-pve-commit.sh walks back to the newest one that can be built.
+PVE_INFO=$(bash "$(dirname "$0")/find-pve-commit.sh")
+PVE_VERSION=$(echo "$PVE_INFO" | jq -r '.version')   # e.g. "7.0.14-26"
 
-mk_var() { echo "$PVE_MAKEFILE" | grep -m1 "^$1=" | cut -d'=' -f2; }
-KERNEL_MAJ=$(mk_var KERNEL_MAJ)
-KERNEL_MIN=$(mk_var KERNEL_MIN)
-KERNEL_PATCHLEVEL=$(mk_var KERNEL_PATCHLEVEL)
-KREL=$(mk_var KREL)
+# Identifier for this upstream release, e.g. "proxmox-kernel-7.0.14-26";
+# build-kernel.sh checks out the matching "bump version to" commit
+LATEST_PVE_TAG="proxmox-kernel-${PVE_VERSION}"
+echo "    Latest buildable pve-kernel version: ${LATEST_PVE_TAG}" >&2
 
-if [ -z "$KERNEL_MAJ" ] || [ -z "$KERNEL_MIN" ] || [ -z "$KERNEL_PATCHLEVEL" ] || [ -z "$KREL" ]; then
-  echo "    ERROR: could not parse kernel version from pve-kernel Makefile" >&2
-  exit 1
-fi
-
-# Identifier for this upstream release, e.g. "proxmox-kernel-7.0.14-27"
-LATEST_PVE_TAG="proxmox-kernel-${KERNEL_MAJ}.${KERNEL_MIN}.${KERNEL_PATCHLEVEL}-${KREL}"
-echo "    Latest pve-kernel version: ${LATEST_PVE_TAG}" >&2
-
-KERNEL_MAJMIN="${KERNEL_MAJ}.${KERNEL_MIN}"
+KERNEL_MAJMIN=$(echo "$PVE_VERSION" | cut -d. -f1,2)
 echo "    Kernel major.minor: ${KERNEL_MAJMIN}" >&2
 
 # Find appropriate t2linux commit using our script

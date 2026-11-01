@@ -2,7 +2,7 @@
 set -e
 
 # Environment variables (passed from workflow):
-# - PVE_KERNEL_TAG: e.g., "pve-kernel-6.17.4-2"
+# - PVE_KERNEL_TAG: e.g., "proxmox-kernel-7.0.14-26" (optional; default: newest buildable)
 # - T2LINUX_COMMIT: e.g., "699c8fdf6e5d0c3bbd3487960df42881d4e8ffd9"
 
 echo "==> Building PVE kernel with T2 support"
@@ -38,10 +38,10 @@ mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 echo "    Working directory: ${WORK_DIR}"
 
-# Install basic tools and nala
-echo "==> Installing nala and basic tools"
+# Install basic tools
+echo "==> Installing basic tools"
 apt-get update -qq
-apt-get install -y -qq nala wget curl ca-certificates git
+apt-get install -y -qq wget curl ca-certificates git
 
 # Add Proxmox repository
 echo "==> Adding Proxmox repository"
@@ -58,8 +58,8 @@ echo "    Proxmox repository added successfully"
 
 # Install build dependencies
 echo "==> Installing build dependencies"
-nala update
-nala install -y \
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
   build-essential git bc bison flex libssl-dev libelf-dev \
   asciidoc-base automake cpio debhelper dh-python file gcc kmod \
   libdw-dev libiberty-dev libnuma-dev libslang2-dev libtool \
@@ -96,6 +96,22 @@ else
   git clone git://git.proxmox.com/git/pve-kernel.git
   cd pve-kernel
 fi
+
+# Check out the requested release instead of the tip of master: master can
+# reference a zfsonlinux commit that isn't published yet.
+# PVE_KERNEL_TAG is e.g. "proxmox-kernel-7.0.14-26" (from check-versions.sh);
+# without it, pick the newest buildable release ourselves.
+PVE_VERSION="${PVE_KERNEL_TAG#proxmox-kernel-}"
+if [ -z "$PVE_KERNEL_TAG" ] || [ "$PVE_VERSION" = "$PVE_KERNEL_TAG" ]; then
+  PVE_VERSION=$(bash "$REPO_ROOT/scripts/find-pve-commit.sh" | sed -n 's/.*"version": "\([^"]*\)".*/\1/p')
+fi
+PVE_COMMIT=$(git log --format=%H -1 --grep="^bump version to ${PVE_VERSION}\$" origin/master)
+if [ -z "$PVE_COMMIT" ]; then
+  echo "    ERROR: no 'bump version to ${PVE_VERSION}' commit on pve-kernel master"
+  exit 1
+fi
+echo "==> Checking out pve-kernel ${PVE_VERSION} (${PVE_COMMIT})"
+git checkout --quiet --detach "$PVE_COMMIT"
 
 # Extract kernel version from Makefile
 KERNEL_MAJ=$(grep "^KERNEL_MAJ=" Makefile | cut -d'=' -f2)

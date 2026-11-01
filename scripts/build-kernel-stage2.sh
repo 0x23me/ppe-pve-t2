@@ -51,6 +51,22 @@ else
   cd pve-kernel
 fi
 
+# Check out the requested release instead of the tip of master: master can
+# reference a zfsonlinux commit that isn't published yet.
+# PVE_KERNEL_TAG is e.g. "proxmox-kernel-7.0.14-26"; without it, pick the
+# newest buildable release ourselves.
+PVE_VERSION="${PVE_KERNEL_TAG#proxmox-kernel-}"
+if [ -z "$PVE_KERNEL_TAG" ] || [ "$PVE_VERSION" = "$PVE_KERNEL_TAG" ]; then
+  PVE_VERSION=$(bash "$REPO_ROOT/scripts/find-pve-commit.sh" | sed -n 's/.*"version": "\([^"]*\)".*/\1/p')
+fi
+PVE_COMMIT=$(git log --format=%H -1 --grep="^bump version to ${PVE_VERSION}\$" origin/master)
+if [ -z "$PVE_COMMIT" ]; then
+  echo "    ERROR: no 'bump version to ${PVE_VERSION}' commit on pve-kernel master"
+  exit 1
+fi
+echo "==> Checking out pve-kernel ${PVE_VERSION} (${PVE_COMMIT})"
+git checkout --quiet --detach "$PVE_COMMIT"
+
 # Extract kernel version from Makefile
 KERNEL_MAJ=$(grep "^KERNEL_MAJ=" Makefile | cut -d'=' -f2)
 KERNEL_MIN=$(grep "^KERNEL_MIN=" Makefile | cut -d'=' -f2)

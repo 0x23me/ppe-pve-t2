@@ -19,21 +19,13 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, t2-kernel]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Install aptly
-        run: |
-          echo "==> Installing aptly"
-          wget -qO - https://www.aptly.info/pubkey.txt | sudo apt-key add -
-          echo "deb http://repo.aptly.info/ squeeze main" | sudo tee /etc/apt/sources.list.d/aptly.list
-          sudo apt-get update
-          sudo apt-get install -y aptly jq
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -46,8 +38,10 @@ jobs:
           echo "==> Downloaded artifacts:"
           find build-artifacts -name "*.deb" -type f
 
+      # HOME in the job's temp dir: the signing key and the aptly db do not persist on the runner
       - name: Import GPG key
         env:
+          HOME: ${{ runner.temp }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "==> Importing GPG key"
@@ -56,6 +50,7 @@ jobs:
 
       - name: Publish repository
         env:
+          HOME: ${{ runner.temp }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "==> Publishing repository"
@@ -72,7 +67,7 @@ jobs:
           git push || echo "No changes to push"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.kernel_version }}
           name: Release ${{ inputs.kernel_version }}

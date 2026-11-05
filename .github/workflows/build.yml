@@ -19,46 +19,23 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, t2-kernel]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Free disk space
-        run: |
-          echo "==> Freeing disk space"
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune -a -f
-          df -h
 
       - name: Set up Docker
         run: |
           echo "==> Docker version"
           docker --version
 
+      # Self-hosted runner: the deps image and the source/ccache volume persist between runs
       - name: Build kernel in Docker
         run: |
-          echo "==> Starting kernel build in Docker"
-          echo "    PVE_KERNEL_TAG: ${{ inputs.pve_kernel_tag }}"
-          echo "    T2LINUX_COMMIT: ${{ inputs.t2linux_commit }}"
-
-          # Run build in Docker
-          docker run --rm \
-            -v "$(pwd):/repo" \
-            -w /repo \
-            -e PVE_KERNEL_TAG="${{ inputs.pve_kernel_tag }}" \
-            -e T2LINUX_COMMIT="${{ inputs.t2linux_commit }}" \
-            debian:trixie \
-            bash -c "
-              set -e
-              apt-get update
-              apt-get install -y wget curl ca-certificates
-              bash /repo/scripts/build-kernel.sh
-            "
+          make build-docker \
+            PVE_KERNEL_TAG="${{ inputs.pve_kernel_tag }}" \
+            T2LINUX_COMMIT="${{ inputs.t2linux_commit }}"
 
       - name: Find built packages
         id: packages
@@ -96,6 +73,11 @@ jobs:
             *.deb
             pve-kernel/*.deb
           retention-days: 30
+
+      # The build container writes as root; hand the workspace back so the next checkout can clean it
+      - name: Fix workspace ownership
+        if: always()
+        run: docker run --rm -v "$PWD:/repo" debian:trixie chown -R "$(id -u):$(id -g)" /repo
 
       - name: Update versions.json
         run: |

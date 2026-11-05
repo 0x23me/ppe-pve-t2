@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, t2-kernel]
 
     outputs:
       needs_build: ${{ steps.check.outputs.needs_build }}
@@ -24,11 +24,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git jq
 
       - name: Check for new versions
         id: check

@@ -4,7 +4,7 @@ Automated build and distribution of Proxmox VE kernels with T2 Mac hardware supp
 
 ## What is this?
 
-This repository automatically builds Proxmox VE kernel packages optimized for Apple T2 Mac hardware. The kernels are built from official Proxmox sources with T2 patches applied and made available through an easy-to-use APT repository hosted on GitHub Pages.
+This repository automatically builds Proxmox VE kernel packages optimized for Apple T2 Mac hardware. The kernels are built from official Proxmox sources with T2 patches applied and made available through an easy-to-use APT repository hosted at apt.0x23.me.
 
 ## Quick Installation
 
@@ -12,13 +12,13 @@ This repository automatically builds Proxmox VE kernel packages optimized for Ap
 
 ```bash
 sudo mkdir -p /usr/share/keyrings
-wget -qO /usr/share/keyrings/ppe-pve-t2.gpg https://0x23me.github.io/ppe-pve-t2/KEY.gpg
+wget -qO /usr/share/keyrings/ppe-pve-t2.asc https://apt.0x23.me/KEY.gpg
 ```
 
 ### 2. Add repository
 
 ```bash
-echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.gpg] https://0x23me.github.io/ppe-pve-t2 trixie main" | \
+echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.asc] https://apt.0x23.me trixie main" | \
   sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
 ```
 
@@ -61,7 +61,7 @@ uname -r  # Should show something like 6.17.4-2-pve-t2
 ## Features
 
 - **Automated Builds**: Daily checks for new upstream versions and automatic builds
-- **APT Repository**: Easy installation via APT repository hosted on GitHub Pages
+- **APT Repository**: Easy installation via APT repository hosted at apt.0x23.me
 - **T2 Mac Support**: Full hardware support for T2 Macs including:
   - Touch Bar
   - BCE (Buffer Copy Engine)
@@ -97,7 +97,7 @@ To remove the repository:
 sudo rm /etc/apt/sources.list.d/ppe-pve-t2.list
 
 # Remove GPG key
-sudo rm /usr/share/keyrings/ppe-pve-t2.gpg
+sudo rm /usr/share/keyrings/ppe-pve-t2.asc
 
 # Update package cache
 sudo apt update
@@ -128,7 +128,7 @@ This repository uses a three-stage workflow to automatically build and publish k
 - Downloads build artifacts
 - Adds packages to APT repository using `aptly`
 - Signs with GPG
-- Publishes to GitHub Pages
+- Uploads the APT repository to apt.0x23.me
 - Creates GitHub Release with packages
 
 ## Version Selection
@@ -186,7 +186,7 @@ ppe-pve-t2/
 │   ├── find-t2-commit.sh   # Auto-detect t2linux commit
 │   ├── build-kernel.sh     # Docker build script
 │   └── publish-repo.sh     # APT publish script
-├── docs/                   # GitHub Pages (APT repository)
+├── docs/                   # APT repository, built by publish (not committed)
 │   ├── pool/main/          # .deb packages
 │   ├── dists/trixie/       # Repository metadata
 │   └── KEY.gpg             # Public GPG key
@@ -199,7 +199,7 @@ ppe-pve-t2/
 ### APT Repository Structure
 
 ```
-https://0x23me.github.io/ppe-pve-t2/
+https://apt.0x23.me/
 ├── pool/main/              # Package pool
 ├── dists/trixie/           # Distribution metadata
 │   ├── Release             # Repository metadata
@@ -216,7 +216,7 @@ https://0x23me.github.io/ppe-pve-t2/
 
 Verify the key fingerprint after importing:
 ```bash
-gpg --show-keys /usr/share/keyrings/ppe-pve-t2.gpg
+gpg --show-keys /usr/share/keyrings/ppe-pve-t2.asc
 ```
 
 ## Credits

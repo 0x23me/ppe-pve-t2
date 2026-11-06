@@ -33,14 +33,14 @@ sudo apt update
 ```bash
 # Install the latest 7.0 series T2 kernel and its headers (headers are
 # needed for DKMS modules, e.g. out-of-tree NIC drivers)
-sudo apt install proxmox-kernel-7.0-t2 proxmox-headers-7.0-t2
+sudo apt install proxmox-kernel-t2-7.0 proxmox-headers-t2-7.0
 
 # Or install a specific version
 sudo apt install proxmox-kernel-7.0.14-26-pve-t2
 ```
 
-The series metapackages carry a `-t2` suffix (`proxmox-kernel-7.0-t2`,
-`proxmox-headers-7.0-t2`), so they don't collide with Proxmox's own
+The series metapackages are named with `t2` (`proxmox-kernel-t2-7.0`,
+`proxmox-headers-t2-7.0`), so they don't collide with Proxmox's own
 `proxmox-kernel-7.0` and both can stay installed; no apt pinning needed.
 New T2 kernels then arrive with a normal `apt upgrade`.
 

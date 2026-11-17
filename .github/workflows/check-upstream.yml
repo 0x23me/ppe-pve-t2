@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, t2-kernel]
 
     outputs:
       needs_build: ${{ steps.check.outputs.needs_build }}

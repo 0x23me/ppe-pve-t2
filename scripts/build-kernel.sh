@@ -72,7 +72,8 @@ if [ -d "pve-kernel/.git" ]; then
   echo "==> Updating existing pve-kernel repository"
   cd pve-kernel
   git am --abort 2>/dev/null || true
-  git fetch origin
+  # Submodules are synced below; recursing here fails on mirror_ubuntu-kernels, which has no HEAD
+  git fetch --no-recurse-submodules origin
   git reset --hard origin/master
   git clean -fdx
 else

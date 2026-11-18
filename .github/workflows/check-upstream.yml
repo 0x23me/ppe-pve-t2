@@ -15,46 +15,49 @@ jobs:
   check:
     runs-on: [self-hosted, t2-kernel]
 
-    outputs:
-      needs_build: ${{ steps.check.outputs.needs_build }}
-      pve_kernel_tag: ${{ steps.check.outputs.pve_kernel_tag }}
-      t2linux_commit: ${{ steps.check.outputs.t2linux_commit }}
-      t2linux_kver: ${{ steps.check.outputs.t2linux_kver }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # One check per train (kernel series) in versions.json; a failed check doesn't stop the others
       - name: Check for new versions
         id: check
         run: |
-          # Run version check script
-          RESULT=$(bash scripts/check-versions.sh)
-          echo "$RESULT" | jq .
+          builds='[]'
+          failed=0
+          for series in $(jq -r '.trains | keys[]' versions.json); do
+            if result=$(bash scripts/check-versions.sh "$series"); then
+              echo "$result" | jq .
+              builds=$(jq -c --argjson r "$result" '. + [$r | select(.needs_build == "true")]' <<<"$builds")
+            else
+              echo "::error::Version check for ${series} failed"
+              failed=1
+            fi
+          done
+          echo "builds=$builds" >> "$GITHUB_OUTPUT"
+          exit $failed
 
-          # Export outputs
-          echo "needs_build=$(echo "$RESULT" | jq -r '.needs_build')" >> $GITHUB_OUTPUT
-          echo "pve_kernel_tag=$(echo "$RESULT" | jq -r '.pve_kernel_tag')" >> $GITHUB_OUTPUT
-          echo "t2linux_commit=$(echo "$RESULT" | jq -r '.t2linux_commit')" >> $GITHUB_OUTPUT
-          echo "t2linux_kver=$(echo "$RESULT" | jq -r '.t2linux_kver')" >> $GITHUB_OUTPUT
-
-      - name: Trigger build if needed
-        if: steps.check.outputs.needs_build == 'true'
+      - name: Trigger builds
+        if: ${{ !cancelled() && steps.check.outputs.builds != '[]' && steps.check.outputs.builds != '' }}
         uses: actions/github-script@v9
+        env:
+          BUILDS: ${{ steps.check.outputs.builds }}
         with:
           script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'build.yml',
-              ref: 'main',
-              inputs: {
-                pve_kernel_tag: '${{ steps.check.outputs.pve_kernel_tag }}',
-                t2linux_commit: '${{ steps.check.outputs.t2linux_commit }}'
-              }
-            });
-            console.log('Triggered build workflow');
+            for (const b of JSON.parse(process.env.BUILDS)) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build.yml',
+                ref: 'main',
+                inputs: {
+                  pve_kernel_tag: b.pve_kernel_tag,
+                  t2linux_commit: b.t2linux_commit
+                }
+              });
+              console.log(`Triggered build of ${b.series}: ${b.pve_kernel_tag}`);
+            }
 
       - name: No build needed
-        if: steps.check.outputs.needs_build == 'false'
+        if: steps.check.outputs.builds == '[]'
         run: echo "No new versions detected, skipping build"

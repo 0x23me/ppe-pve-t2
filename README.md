@@ -31,8 +31,11 @@ sudo apt update
 ### 4. Install kernel
 
 ```bash
-# Install the latest 7.0 series T2 kernel and its headers (headers are
+# Install the latest 7.3 series T2 kernel and its headers (headers are
 # needed for DKMS modules, e.g. out-of-tree NIC drivers)
+sudo apt install proxmox-kernel-t2-7.3 proxmox-headers-t2-7.3
+
+# Or stay on the 7.0 series
 sudo apt install proxmox-kernel-t2-7.0 proxmox-headers-t2-7.0
 
 # Or install a specific version
@@ -43,6 +46,10 @@ The series metapackages are named with `t2` (`proxmox-kernel-t2-7.0`,
 `proxmox-headers-t2-7.0`), so they don't collide with Proxmox's own
 `proxmox-kernel-7.0` and both can stay installed; no apt pinning needed.
 New T2 kernels then arrive with a normal `apt upgrade`.
+
+Two series are built side by side: 7.0 and 7.3. The repository holds the newest
+build of each, so a 7.0 install keeps getting 7.0 updates and doesn't move to 7.3
+on its own.
 
 ```bash
 ```
@@ -109,7 +116,9 @@ This repository uses a three-stage workflow to automatically build and publish k
 
 ### 1. Check Upstream (Daily)
 
-- Monitors [Proxmox kernel repository](git://git.proxmox.com/git/pve-kernel.git) for new tags
+- Checks each series ("train") listed in `versions.json`: 7.3 from the tags in
+  [proxmox-kernel.git](git://git.proxmox.com/git/proxmox-kernel.git), 7.0 from
+  [pve-kernel.git](git://git.proxmox.com/git/pve-kernel.git), where Proxmox kept the kernel up to 7.0
 - Monitors [t2linux patches](https://github.com/t2linux/linux-t2-patches) for updates
 - Automatically selects appropriate t2linux commit based on kernel version
 - Triggers build if new versions are detected
@@ -158,7 +167,7 @@ You can manually trigger a build via GitHub Actions:
 1. Go to **Actions** → **Build PVE Kernel with T2 Support**
 2. Click **Run workflow**
 3. Enter:
-   - PVE kernel tag (e.g., `pve-kernel-6.17.4-2`)
+   - Proxmox kernel release (e.g. `proxmox/7.3.5-1` or `proxmox-kernel-7.0.14-30`)
    - T2Linux commit hash (e.g., `699c8fdf6e5d0c3bbd3487960df42881d4e8ffd9`)
 
 ## Pinning T2 Patches Version
@@ -166,8 +175,17 @@ You can manually trigger a build via GitHub Actions:
 To use a specific t2linux commit instead of auto-detection:
 
 1. Edit `versions.json`
-2. Set `"pinned_t2linux_commit": "COMMIT_HASH"`
+2. Set `"pinned_t2linux_commit": "COMMIT_HASH"` under the series in `trains`
 3. Commit and push
+
+7.3 is pinned to t2linux `dd9b845`: newer t2linux commits rework the SMC drivers and
+don't apply to Proxmox's 7.3 yet.
+
+## Adding a Series
+
+Add it to `trains` in `versions.json` with `"last_build": null`. The next daily
+check builds and publishes it. A new series may need rebased t2linux patches in
+`patches/t2-overrides/<series>/`.
 
 To unpin: Set to `null`
 

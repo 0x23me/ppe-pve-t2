@@ -18,7 +18,8 @@ permissions:
   contents: write
 
 # Runs from main publish to apt.0x23.me as before; runs from any other branch go to apt.0x23.me/beta
-# and a GitHub pre-release, so a test build never reaches the stable repo.
+# and a GitHub pre-release, so a test build never reaches the stable repo. Each repo keeps the
+# newest build of every train (kernel series); publish-repo.sh reads APT_URL for that.
 env:
   BETA: ${{ github.ref != 'refs/heads/main' }}
   PREFIX: ${{ github.ref == 'refs/heads/main' && '.' || 'beta' }}
@@ -43,9 +44,11 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: List downloaded artifacts
+        id: artifacts
         run: |
           echo "==> Downloaded artifacts:"
           find build-artifacts -name "*.deb" -type f
+          echo "series=$(echo "${{ inputs.kernel_version }}" | cut -d. -f1,2)" >> "$GITHUB_OUTPUT"
 
       # HOME in the job's temp dir: the signing key and the aptly db do not persist on the runner
       - name: Import GPG key
@@ -89,7 +92,7 @@ jobs:
             echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.asc] ${{ env.APT_URL }} trixie main" | sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
             wget -qO /usr/share/keyrings/ppe-pve-t2.asc ${{ env.APT_URL }}/KEY.gpg
             sudo apt update
-            sudo apt install proxmox-kernel-t2-7.0 proxmox-headers-t2-7.0
+            sudo apt install proxmox-kernel-t2-${{ steps.artifacts.outputs.series }} proxmox-headers-t2-${{ steps.artifacts.outputs.series }}
             ```
 
             ### What's Included

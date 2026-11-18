@@ -36,6 +36,24 @@ else
   echo "==> Repository ${REPO_NAME} already exists"
 fi
 
+# The repo carries the newest build of each train (7.0, 7.3, ...), but the aptly db doesn't
+# persist between runs: take the other trains' packages from the repo as published now.
+# aptly checks the published signature, and the packages' checksums against it.
+SERIES=$(find "$DEB_DIR" -name 'proxmox-kernel-t2-*.deb' -printf '%f\n' | head -1 | sed -E 's/^proxmox-kernel-t2-([0-9]+\.[0-9]+)_.*/\1/')
+if [ -z "$SERIES" ]; then
+  echo "    Error: no proxmox-kernel-t2-<series> package in ${DEB_DIR}" >&2
+  exit 1
+fi
+if [ -n "$APT_URL" ] && curl -fsI "${APT_URL}/dists/${DIST}/InRelease" >/dev/null; then
+  echo "==> Keeping the other trains' packages from ${APT_URL} (this build replaces ${SERIES})"
+  gpg --export "$GPG_KEY_ID" | gpg --batch --no-default-keyring --keyring trustedkeys.gpg --import
+  aptly mirror create -filter="!Version (% ${SERIES}.*)" published "$APT_URL" "$DIST" "$COMPONENT"
+  aptly mirror update published
+  aptly repo import published "$REPO_NAME" 'Name (% *)'
+else
+  echo "==> Nothing published at ${APT_URL:-(no APT_URL)} yet, starting an empty repo"
+fi
+
 # Add packages to repository
 echo "==> Adding packages to repository"
 DEB_COUNT=$(find "$DEB_DIR" -name "*.deb" | wc -l)

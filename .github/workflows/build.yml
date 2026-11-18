@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       pve_kernel_tag:
-        description: 'PVE kernel tag (e.g., pve-kernel-6.17.4-2)'
+        description: 'Proxmox kernel release (e.g. proxmox-kernel-7.0.14-30 or proxmox/7.3.5-1)'
         required: true
         type: string
       t2linux_commit:
@@ -79,11 +79,15 @@ jobs:
         if: always()
         run: docker run --rm -v "$PWD:/repo" debian:trixie chown -R "$(id -u):$(id -g)" /repo
 
-      # Branch builds are betas; versions.json tracks main's builds only
+      # Branch builds are betas; versions.json tracks main's builds only, one entry per train
+      # (kernel series). Other trains' builds may have pushed since this run started, so update
+      # the branch as it is now rather than the commit this run checked out.
       - name: Update versions.json
         if: github.ref == 'refs/heads/main'
         run: |
           echo "==> Updating versions.json"
+          git fetch -q origin "$GITHUB_REF_NAME"
+          git checkout -q -f -B "$GITHUB_REF_NAME" FETCH_HEAD
 
           # Read t2linux KVER from the build
           T2_KVER="unknown"
@@ -91,13 +95,14 @@ jobs:
             T2_KVER=$(cat linux-t2-patches/version 2>/dev/null || echo "unknown")
           fi
 
-          # Update versions.json
-          jq --arg pve_tag "${{ inputs.pve_kernel_tag }}" \
+          KERNEL_VERSION="${{ steps.packages.outputs.kernel_version }}"
+          jq --arg series "$(echo "$KERNEL_VERSION" | cut -d. -f1,2)" \
+             --arg pve_tag "${{ inputs.pve_kernel_tag }}" \
              --arg t2_commit "${{ inputs.t2linux_commit }}" \
              --arg t2_kver "$T2_KVER" \
-             --arg kernel_ver "${{ steps.packages.outputs.kernel_version }}" \
+             --arg kernel_ver "$KERNEL_VERSION" \
              --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-             '.last_build = {
+             '.trains[$series].last_build = {
                pve_kernel_tag: $pve_tag,
                t2linux_commit: $t2_commit,
                t2linux_kver: $t2_kver,
@@ -121,7 +126,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add versions.json
           git commit -m "Update versions.json: ${{ inputs.pve_kernel_tag }}" || echo "No changes to commit"
-          git push || echo "No changes to push"
+          git push origin "HEAD:$GITHUB_REF_NAME" || echo "No changes to push"
 
       # Publish from the same branch: main publishes the stable repo, any other branch the beta one
       - name: Trigger publish workflow

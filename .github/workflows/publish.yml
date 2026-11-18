@@ -17,6 +17,13 @@ permissions:
   actions: read
   contents: write
 
+# Runs from main publish to apt.0x23.me as before; runs from any other branch go to apt.0x23.me/beta
+# and a GitHub pre-release, so a test build never reaches the stable repo.
+env:
+  BETA: ${{ github.ref != 'refs/heads/main' }}
+  PREFIX: ${{ github.ref == 'refs/heads/main' && '.' || 'beta' }}
+  APT_URL: https://apt.0x23.me${{ github.ref != 'refs/heads/main' && '/beta' || '' }}
+
 jobs:
   publish:
     runs-on: [self-hosted, t2-kernel]
@@ -56,20 +63,20 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "==> Publishing repository"
-          bash scripts/publish-repo.sh build-artifacts/
+          bash scripts/publish-repo.sh build-artifacts/ "$PREFIX"
 
       # apt.0x23.me (nginx on r-worker): the deploy key only allows rsync into its html directory
       - name: Upload to apt.0x23.me
         run: |
           rsync -rlt --delete --chmod=D755,F644 \
             -e "ssh -i /var/lib/apt-publish/id_ed25519 -o ControlMaster=no -o ControlPath=none" \
-            docs/KEY.gpg docs/dists docs/pool apt-publish@10.23.32.41:
+            docs/KEY.gpg docs/dists docs/pool "apt-publish@10.23.32.41:${PREFIX#.}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ inputs.kernel_version }}
-          name: Release ${{ inputs.kernel_version }}
+          tag_name: v${{ inputs.kernel_version }}${{ env.BETA == 'true' && format('-beta.{0}', inputs.run_id) || '' }}
+          name: ${{ env.BETA == 'true' && 'Beta' || 'Release' }} ${{ inputs.kernel_version }}
           body: |
             ## Proxmox VE Kernel with T2 Mac Support
 
@@ -79,8 +86,8 @@ jobs:
 
             Add the APT repository:
             ```bash
-            echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.asc] https://apt.0x23.me trixie main" | sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
-            wget -qO /usr/share/keyrings/ppe-pve-t2.asc https://apt.0x23.me/KEY.gpg
+            echo "deb [signed-by=/usr/share/keyrings/ppe-pve-t2.asc] ${{ env.APT_URL }} trixie main" | sudo tee /etc/apt/sources.list.d/ppe-pve-t2.list
+            wget -qO /usr/share/keyrings/ppe-pve-t2.asc ${{ env.APT_URL }}/KEY.gpg
             sudo apt update
             sudo apt install proxmox-kernel-t2-7.0 proxmox-headers-t2-7.0
             ```
@@ -98,6 +105,7 @@ jobs:
             All packages are also available in the APT repository.
           files: build-artifacts/*.deb
           draft: false
-          prerelease: false
+          prerelease: ${{ env.BETA == 'true' }}
+          make_latest: ${{ env.BETA != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

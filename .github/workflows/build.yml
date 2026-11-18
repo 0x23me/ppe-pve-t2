@@ -79,7 +79,9 @@ jobs:
         if: always()
         run: docker run --rm -v "$PWD:/repo" debian:trixie chown -R "$(id -u):$(id -g)" /repo
 
+      # Branch builds are betas; versions.json tracks main's builds only
       - name: Update versions.json
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "==> Updating versions.json"
 
@@ -113,6 +115,7 @@ jobs:
           cat versions.json | jq .
 
       - name: Commit versions.json
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -120,6 +123,7 @@ jobs:
           git commit -m "Update versions.json: ${{ inputs.pve_kernel_tag }}" || echo "No changes to commit"
           git push || echo "No changes to push"
 
+      # Publish from the same branch: main publishes the stable repo, any other branch the beta one
       - name: Trigger publish workflow
         uses: actions/github-script@v9
         with:
@@ -128,7 +132,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'publish.yml',
-              ref: 'main',
+              ref: '${{ github.ref_name }}',
               inputs: {
                 kernel_version: '${{ steps.packages.outputs.kernel_version }}',
                 run_id: '${{ github.run_id }}'

@@ -8,12 +8,14 @@ REPO_NAME="ppe-pve-t2"
 DIST="trixie"
 COMPONENT="main"
 DEB_DIR="${1:-.}"  # Default to current directory
+PREFIX="${2:-.}"   # aptly publish prefix: "." for the stable repo, "beta" for branch builds
 
 echo "==> Publishing packages to APT repository"
 echo "    Repository: ${REPO_NAME}"
 echo "    Distribution: ${DIST}"
 echo "    Component: ${COMPONENT}"
 echo "    Package directory: ${DEB_DIR}"
+echo "    Prefix: ${PREFIX}"
 
 # Import GPG key if GPG_PRIVATE_KEY environment variable is set
 if [ -n "$GPG_PRIVATE_KEY" ]; then
@@ -52,20 +54,20 @@ done
 
 # Publish repository
 echo "==> Publishing repository"
-if aptly publish show "$DIST" >/dev/null 2>&1; then
+if aptly publish show "$DIST" "$PREFIX" >/dev/null 2>&1; then
   echo "    Updating existing publication"
-  aptly publish update -gpg-key="$GPG_KEY_ID" "$DIST"
+  aptly publish update -gpg-key="$GPG_KEY_ID" "$DIST" "$PREFIX"
 else
   echo "    Creating new publication"
-  aptly publish repo -gpg-key="$GPG_KEY_ID" -distribution="$DIST" "$REPO_NAME"
+  aptly publish repo -gpg-key="$GPG_KEY_ID" -distribution="$DIST" "$REPO_NAME" "$PREFIX"
 fi
 
 # Copy published repository to docs/
 echo "==> Copying published repository to docs/"
 mkdir -p docs
 rm -rf docs/pool docs/dists
-cp -r ~/.aptly/public/pool docs/
-cp -r ~/.aptly/public/dists docs/
+cp -r ~/.aptly/public/"$PREFIX"/pool docs/
+cp -r ~/.aptly/public/"$PREFIX"/dists docs/
 
 # Export public GPG key
 echo "==> Exporting public GPG key"

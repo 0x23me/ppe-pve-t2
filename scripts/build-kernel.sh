@@ -67,6 +67,32 @@ echo "    Using t2linux commit: ${T2LINUX_COMMIT}"
 echo "    t2linux KVER: ${T2_KVER}"
 cd ..
 
+# Compiler cache: reruns that only change packaging (or rebuild the same
+# release) reuse compiled objects. Kbuild calls plain `gcc`/`clang`, so putting
+# ccache's masquerade dir first in PATH catches every compile.
+# Opt-in (USE_CCACHE=1) for local builds only; CI always compiles from scratch.
+# CCACHE_DIR should point at persistent storage to be useful.
+if [ "${USE_CCACHE:-0}" = "1" ] && command -v ccache >/dev/null 2>&1; then
+  export CCACHE_DIR="${CCACHE_DIR:-$WORK_DIR/.ccache}"
+  export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-30G}"
+  export CCACHE_BASEDIR="$WORK_DIR"     # relative paths -> hits across work dirs
+  export CCACHE_NOHASHDIR=1             # don't key debug info on the build dir
+  export CCACHE_COMPILERCHECK=content
+  export PATH="/usr/lib/ccache:$PATH"
+  mkdir -p "$CCACHE_DIR"
+  ccache --zero-stats >/dev/null
+  trap 'echo "==> ccache statistics"; ccache --show-stats | sed "s/^/    /"' EXIT
+  echo "==> ccache enabled (dir: ${CCACHE_DIR}, max: ${CCACHE_MAXSIZE})"
+fi
+
+# Since 7.3 Proxmox builds the kernel from proxmox-kernel.git, whose release tags look like
+# "proxmox/7.3.5-1"; that layout has its own script
+if [[ "$PVE_KERNEL_TAG" == proxmox/* ]]; then
+  export WORK_DIR REPO_ROOT COMPILER
+  bash "$REPO_ROOT/scripts/build-proxmox-kernel.sh"
+  exit 0
+fi
+
 # Clone or update pve-kernel
 if [ -d "pve-kernel/.git" ]; then
   echo "==> Updating existing pve-kernel repository"
@@ -137,24 +163,6 @@ echo "==> Updating submodules"
 git submodule sync --quiet
 git submodule update --depth 1 --init submodules/ubuntu-kernel
 git submodule update --init --recursive submodules/zfsonlinux
-
-# Compiler cache: reruns that only change packaging (or rebuild the same
-# release) reuse compiled objects. Kbuild calls plain `gcc`/`clang`, so putting
-# ccache's masquerade dir first in PATH catches every compile.
-# Opt-in (USE_CCACHE=1) for local builds only; CI always compiles from scratch.
-# CCACHE_DIR should point at persistent storage to be useful.
-if [ "${USE_CCACHE:-0}" = "1" ] && command -v ccache >/dev/null 2>&1; then
-  export CCACHE_DIR="${CCACHE_DIR:-$WORK_DIR/.ccache}"
-  export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-30G}"
-  export CCACHE_BASEDIR="$WORK_DIR"     # relative paths -> hits across work dirs
-  export CCACHE_NOHASHDIR=1             # don't key debug info on the build dir
-  export CCACHE_COMPILERCHECK=content
-  export PATH="/usr/lib/ccache:$PATH"
-  mkdir -p "$CCACHE_DIR"
-  ccache --zero-stats >/dev/null
-  trap 'echo "==> ccache statistics"; ccache --show-stats | sed "s/^/    /"' EXIT
-  echo "==> ccache enabled (dir: ${CCACHE_DIR}, max: ${CCACHE_MAXSIZE})"
-fi
 
 # Build
 if [ "$COMPILER" = "clang" ]; then

@@ -1,0 +1,84 @@
+Add T2 support to the proxmox-kernel.git packaging (7.3 and later)
+
+Rename the kernel flavour to -pve-t2 and the series metapackages to
+proxmox-kernel-t2-X.Y / proxmox-headers-t2-X.Y, as T2.patch does for the
+older pve-kernel layout, and enable the T2 drivers that Proxmox's config
+doesn't build yet: the T2 bus (T2BCE), APFS and the x86 SMC drivers.
+Touch Bar and BCM4377 Bluetooth are already enabled by Proxmox.
+---
+ debian/control.in                 |  4 ++--
+ debian/rules                      |  6 +++---
+ debian/rules.d/config-common.opts | 15 +++++++++++++++
+ 3 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/debian/control.in b/debian/control.in
+index 09fa1a59a779..d901a53d504b 100644
+--- a/debian/control.in
++++ b/debian/control.in
+@@ -106,7 +106,7 @@ Description: Linux support headers for userspace development
+  This package provides userspaces headers from the Linux kernel.  These headers
+  are used by the installed headers for GNU libc and other system libraries.
+ 
+-Package: proxmox-headers-@KVMAJMIN@
++Package: proxmox-headers-t2-@KVMAJMIN@
+ Architecture: any
+ Section: admin
+ Provides: linux-headers-${kernel:debarch}, linux-headers-generic, pve-headers-@KVMAJMIN@
+@@ -118,7 +118,7 @@ Description: Latest Proxmox Kernel Headers
+  for the latest available proxmox kernel from the @KVMAJMIN@
+  series.
+ 
+-Package: proxmox-kernel-@KVMAJMIN@
++Package: proxmox-kernel-t2-@KVMAJMIN@
+ Architecture: any
+ Section: admin
+ Provides: linux-image-${kernel:debarch}, linux-image-generic, wireguard-modules (=1.0.0), pve-kernel-@KVMAJMIN@
+diff --git a/debian/rules b/debian/rules
+index f85e835f80bc..026ba6725258 100755
+--- a/debian/rules
++++ b/debian/rules
+@@ -41,7 +41,7 @@ define check-version
+ 	           "kernel $(KERNEL_VER), expected $(KERNEL_VER_DEB)" >&2; false; }
+ endef
+ 
+-PMX_LOCALVERSION := -$(KREL)-pve
++PMX_LOCALVERSION := -$(KREL)-pve-t2
+ KVNAME := $(KERNEL_VER)$(PMX_LOCALVERSION)
+ 
+ BUILD_DIR := $(CURDIR)
+@@ -58,10 +58,10 @@ CHANGELOG_DATE := $(shell dpkg-parsechangelog -SDate)
+ CHANGELOG_DATE_UTC_ISO := $(shell date -u -d '$(CHANGELOG_DATE)' +%Y-%m-%dT%H:%MZ)
+ 
+ PMX_KERNEL_PKG = proxmox-kernel-$(KVNAME)
+-PMX_KERNEL_SERIES_PKG = proxmox-kernel-$(KERNEL_MAJMIN)
++PMX_KERNEL_SERIES_PKG = proxmox-kernel-t2-$(KERNEL_MAJMIN)
+ PMX_DEBUG_KERNEL_PKG = proxmox-kernel-$(KVNAME)-dbgsym
+ PMX_HEADER_PKG = proxmox-headers-$(KVNAME)
+-PMX_HEADER_SERIES_PKG = proxmox-headers-$(KERNEL_MAJMIN)
++PMX_HEADER_SERIES_PKG = proxmox-headers-t2-$(KERNEL_MAJMIN)
+ PMX_USR_HEADER_PKG = proxmox-kernel-libc-dev
+ PMX_KERNEL_SIGNING_TEMPLATE_PKG = proxmox-kernel-$(KVNAME)-signed-template
+ PMX_KERNEL_SIGNED_VERSION := $(shell echo $(DEB_VERSION) | sed -e 's/-/+/')
+diff --git a/debian/rules.d/config-common.opts b/debian/rules.d/config-common.opts
+index 38315b6f8ed3..4ce69a0477f8 100644
+--- a/debian/rules.d/config-common.opts
++++ b/debian/rules.d/config-common.opts
+@@ -70,3 +70,18 @@
+ -e CONFIG_ANDROID_BINDER_IPC
+ -e CONFIG_ANDROID_BINDERFS
+ --set-str CONFIG_ANDROID_BINDER_DEVICES ""
++-m CONFIG_T2BCE_CORE
++-m CONFIG_T2BCE_VHCI
++-m CONFIG_T2BCE_AUDIO
++-m CONFIG_T2BCE_DMA
++-m CONFIG_T2BCE_AVE
++-m CONFIG_APFS_FS
++-m CONFIG_MFD_MACSMC_CORE
++-m CONFIG_MACSMC_ACPI
++-m CONFIG_RTC_DRV_MACSMC
++-m CONFIG_MACSMC_WDT
++-m CONFIG_MACSMC_LIGHT
++-m CONFIG_MACSMC_ACCEL
++-m CONFIG_MACSMC_POWER
++-m CONFIG_LEDS_MACSMC
++-m CONFIG_SENSORS_MACSMC_HWMON

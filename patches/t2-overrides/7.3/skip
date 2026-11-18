@@ -1,0 +1,5 @@
+# t2linux patches left out for 7.3 because the kernel already has the change.
+# One file name per line; build-proxmox-kernel.sh reads this file.
+
+# Linux 7.3.5 already maps the msgbuf RX packet IDs DMA_BIDIRECTIONAL (stable backport)
+9005-wifi-brcmfmac-map-msgbuf-RX-packet-IDs-bidirectional.patch

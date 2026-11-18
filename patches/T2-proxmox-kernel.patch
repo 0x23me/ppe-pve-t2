@@ -5,14 +5,18 @@ proxmox-kernel-t2-X.Y / proxmox-headers-t2-X.Y, as T2.patch does for the
 older pve-kernel layout, and enable the T2 drivers that Proxmox's config
 doesn't build yet: the T2 bus (T2BCE), APFS and the x86 SMC drivers.
 Touch Bar and BCM4377 Bluetooth are already enabled by Proxmox.
+
+Also make usr-headers-install wait for the compile: it runs headers_install
+in the same tree, and with many build jobs the two race on the generated
+uapi headers ("No rule to make target ... .tmp_ipcbuf.h").
 ---
  debian/control.in                 |  4 ++--
- debian/rules                      |  6 +++---
+ debian/rules                      |  8 ++++----
  debian/rules.d/config-common.opts | 15 +++++++++++++++
- 3 files changed, 20 insertions(+), 5 deletions(-)
+ 3 files changed, 21 insertions(+), 6 deletions(-)
 
 diff --git a/debian/control.in b/debian/control.in
-index 09fa1a59a779..d901a53d504b 100644
+index 09fa1a5..d901a53 100644
 --- a/debian/control.in
 +++ b/debian/control.in
 @@ -106,7 +106,7 @@ Description: Linux support headers for userspace development
@@ -34,7 +38,7 @@ index 09fa1a59a779..d901a53d504b 100644
  Section: admin
  Provides: linux-image-${kernel:debarch}, linux-image-generic, wireguard-modules (=1.0.0), pve-kernel-@KVMAJMIN@
 diff --git a/debian/rules b/debian/rules
-index f85e835f80bc..026ba6725258 100755
+index f85e835..3a2b6a6 100755
 --- a/debian/rules
 +++ b/debian/rules
 @@ -41,7 +41,7 @@ define check-version
@@ -59,8 +63,17 @@ index f85e835f80bc..026ba6725258 100755
  PMX_USR_HEADER_PKG = proxmox-kernel-libc-dev
  PMX_KERNEL_SIGNING_TEMPLATE_PKG = proxmox-kernel-$(KVNAME)-signed-template
  PMX_KERNEL_SIGNED_VERSION := $(shell echo $(DEB_VERSION) | sed -e 's/-/+/')
+@@ -334,7 +334,7 @@ $(STAMPS)/headers-install: $(STAMPS)/compile $(STAMPS)/modules-compile $(STAMPS)
+ 
+ $(STAMPS)/usr-headers-install: PKG_DIR = debian/$(PMX_USR_HEADER_PKG)
+ $(STAMPS)/usr-headers-install: OUT_DIR = $(PKG_DIR)/usr
+-$(STAMPS)/usr-headers-install: $(STAMPS)/config
++$(STAMPS)/usr-headers-install: $(STAMPS)/config $(STAMPS)/compile
+ 	rm -rf '$(PKG_DIR)'
+ 	mkdir -p  '$(PKG_DIR)'
+ 	$(MAKE) headers_install ARCH=$(KERNEL_HEADER_ARCH) INSTALL_HDR_PATH='$(CURDIR)'/$(OUT_DIR)
 diff --git a/debian/rules.d/config-common.opts b/debian/rules.d/config-common.opts
-index 38315b6f8ed3..4ce69a0477f8 100644
+index 38315b6..4ce69a0 100644
 --- a/debian/rules.d/config-common.opts
 +++ b/debian/rules.d/config-common.opts
 @@ -70,3 +70,18 @@

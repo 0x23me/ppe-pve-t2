@@ -46,7 +46,9 @@ if [ -z "$SERIES" ]; then
 fi
 if [ -n "$APT_URL" ] && curl -fsI "${APT_URL}/dists/${DIST}/InRelease" >/dev/null; then
   echo "==> Keeping the other trains' packages from ${APT_URL} (this build replaces ${SERIES})"
-  gpg --export "$GPG_KEY_ID" | gpg --batch --no-default-keyring --keyring trustedkeys.gpg --import
+  # gpgv's trusted keyring; a plain export, as gpg with keyboxd ignores --keyring
+  mkdir -p "$HOME/.gnupg"
+  gpg --export "$GPG_KEY_ID" > "$HOME/.gnupg/trustedkeys.gpg"
   aptly mirror create -filter="!Version (% ${SERIES}.*)" published "$APT_URL" "$DIST" "$COMPONENT"
   aptly mirror update published
   aptly repo import published "$REPO_NAME" 'Name (% *)'

@@ -3,11 +3,11 @@
     "7.0": {
       "pinned_t2linux_commit": null,
       "last_build": {
-        "pve_kernel_tag": "proxmox-kernel-7.0.14-30",
+        "pve_kernel_tag": "proxmox-kernel-7.0.14-31",
         "t2linux_commit": "7ee7d19c38e5df31a386b2a0c35ca8f064003960",
         "t2linux_kver": "unknown",
-        "kernel_version": "7.0.14-30-pve-t2",
-        "built_at": "2026-11-17T22:43:10Z",
+        "kernel_version": "7.0.14-31-pve-t2",
+        "built_at": "2026-11-27T07:43:14Z",
         "status": "success"
       }
     },
@@ -47,6 +47,12 @@
       "t2linux_commit": "dd9b845c30b3212ac5cbd7c18d0fc0bedb13e4fb",
       "kernel_version": "7.3.5-1-pve-t2",
       "built_at": "2026-11-19T01:01:33Z"
+    },
+    {
+      "pve_kernel_tag": "proxmox-kernel-7.0.14-31",
+      "t2linux_commit": "7ee7d19c38e5df31a386b2a0c35ca8f064003960",
+      "kernel_version": "7.0.14-31-pve-t2",
+      "built_at": "2026-11-27T07:43:14Z"
     }
   ]
 }
